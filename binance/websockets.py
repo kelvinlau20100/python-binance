@@ -64,6 +64,7 @@ class BinanceSocketManager(threading.Thread):
 
     STREAM_URL = 'wss://stream.binance.com:9443/'
     FSTREAM_URL = 'wss://fstream.binance.com/'
+    DSTREAM_URL = 'wss://dstream.binance.com/'
 
     WEBSOCKET_DEPTH_5 = '5'
     WEBSOCKET_DEPTH_10 = '10'
@@ -111,6 +112,20 @@ class BinanceSocketManager(threading.Thread):
             return False
 
         factory_url = self.FSTREAM_URL + prefix + path
+        factory = BinanceClientFactory(factory_url)
+        factory.protocol = BinanceClientProtocol
+        factory.callback = callback
+        factory.reconnect = True
+        context_factory = ssl.ClientContextFactory()
+
+        self._conns[path] = connectWS(factory, context_factory)
+        return path
+
+    def _start_coin_futures_socket(self, path, callback, prefix='stream?streams='):
+        if path in self._conns:
+            return False
+
+        factory_url = self.DSTREAM_URL + prefix + path
         factory = BinanceClientFactory(factory_url)
         factory.protocol = BinanceClientProtocol
         factory.callback = callback
@@ -506,6 +521,11 @@ class BinanceSocketManager(threading.Thread):
         """
         stream_name = '!markPrice@arr@1s' if fast else '!markPrice@arr'
         return self._start_futures_socket(stream_name, callback)
+
+    def start_symbol_ticker_coin_futures_socket(self, symbol, callback):
+        """Copied the code from other sections
+        """
+        return self._start_coin_futures_socket(symbol.lower() + '@bookTicker', callback)
 
     def start_symbol_ticker_futures_socket(self, symbol, callback):
         """Start a websocket for a symbol's ticker data
